@@ -170,10 +170,10 @@ void pinjamBuku(string username){
         {
             estimasiHari = ((posisi - temp->jumlahCopy) /temp->jumlahCopy +1) * MASA_PINJAM;
         }
-        cout << "Berhasil mendaftar antiran" << endl;
+        cout << "\nBerhasil mendaftar antiran" << endl;
         cout << "Posisi antrian: " << posisi << endl;
         cout << "Estimasi tunggu: " << estimasiHari << " hari." << endl; 
-        if (estimasiHari = 0)
+        if (estimasiHari == 0)
         {
             cout << "\n[!!] Jika buku tidak diunduh dalam rentang waktu " << BATAS_WAKTU_UNDUH/60 << " menit, buku otomatis dikembalikan [!!]" << endl;
         }
@@ -207,6 +207,7 @@ buku* cariPtrBuku(const string& keyword){
 }
 void returnBuku(string username, string judulBuku){
     buku* temp = head;
+    transform(judulBuku.begin(), judulBuku.end(), judulBuku.begin(), ::tolower);
     while (temp != nullptr)
     {
         string judulLower = temp->judul;
@@ -299,7 +300,7 @@ void rakPinjam(string username){
                 if (p == 'y') unduhBuku(username);
             }
             break;
-        case 2: 
+        case 2: {
             buku* temp = head;
             while (temp != nullptr)
             {
@@ -314,13 +315,15 @@ void rakPinjam(string username){
                 temp = temp->next;
             }
             break;
+        }
         case 3:
             cin.ignore();{ 
             string judul;
             cout << "Masukkan judul buku yang ingin dikembalikan: ";
             getline(cin, judul);
-            transform(judul.begin(), judul.end(), judul.begin(), ::tolower);
             returnBuku(username, judul);}
+            break;
+        case 4:
             break;
         default:
             cout << "Pilihan tidak valid" << endl;
