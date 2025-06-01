@@ -8,6 +8,8 @@
 #include <ctime>
 #include <thread>
 #include <chrono>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -16,7 +18,7 @@ const int BATAS_WAKTU_UNDUH = 60; //detik
 
 struct buku
 {
-    string judul, penulis;
+    string judul, penulis, genre;
     int jumlahCopy;
     queue<string> antrianPinjam;
     map<string, time_t> waktuUnduh;
@@ -26,7 +28,9 @@ struct buku
 buku* head = nullptr;
 map<string, set<string>> pinjamanUser;
 
-void tambahBuku(string judul, string penulis, int jumlahCopy);
+void saveAntrian();
+void loadAntrian();
+void tambahBuku(string judul, string penulis, string genre, int jumlahCopy);
 void tampilkanKoleksiBuku();
 void cariBuku();
 void pinjamBuku(string username);
@@ -35,19 +39,22 @@ buku* cariPtrBuku(const string& keyword);
 void autoReturnBuku(string username, string judul);
 void unduhBuku(string username);
 void rakPinjam(string username);
+void filterBuku(const string& inputGenre);
 
 
 int main(){
     int pilihan;
     string username;
-    tambahBuku("Bumi", "Tere Liye", 1);
-    tambahBuku("Bumi Manusia", "Pramoedya Ananta Toer", 1);
-    tambahBuku("Dunia Anna", "Jostein Gaarden", 2);
-    tambahBuku("Dunia Sophie", "Jostein Gaarden", 3);
-    tambahBuku("Gagal Menjadi Manusia", "Osamu Dazai", 1);
-    tambahBuku("Ngarang Aja Lah", "Sobat Bumi", 1);
-    tambahBuku("Pulang-Pergi", "Tere Liye", 4);
-    tambahBuku("Si Anak Cahaya", "Tere Liye", 3);
+    tambahBuku("Bumi", "Tere Liye", "Fantasi", 1);
+    tambahBuku("Bumi Manusia", "Pramoedya Ananta Toer", "Fiksi Sejarah", 1);
+    tambahBuku("Dunia Anna", "Jostein Gaarden", "Filsafat", 2);
+    tambahBuku("Dunia Sophie", "Jostein Gaarden", "Filsafat", 3);
+    tambahBuku("Gagal Menjadi Manusia", "Osamu Dazai", "Psikologi", 1);
+    tambahBuku("Laut Bercerita", "Leila S. Chudori","Fiksi Sejarah", 1);
+    tambahBuku("Pulang-Pergi", "Tere Liye", "Fantasi", 4);
+    tambahBuku("Si Anak Cahaya", "Tere Liye","Fantasi", 3);
+
+    loadAntrian();
     
     cout << "Masukkan username Anda: ";
     getline(cin, username);
@@ -55,10 +62,10 @@ int main(){
     {
         cout << "\n========== Daftar Buku ==========\n";
         tampilkanKoleksiBuku();
-        cout << "\n========== Menu ===========\n"
+        cout << "\n========== Menu Utama ===========\n"
              << "1. Pinjam Buku\n"
              << "2. Cari Buku\n"
-             << "3. Sort Buku\n"
+             << "3. Filter Buku Berdasarkan Genre\n"
              << "4. Rak Pinjam\n"
              << "5. Keluar\n"
              << "Pilihan: ";
@@ -71,25 +78,99 @@ int main(){
         case 2:
             cariBuku();
             break;
-        case 3:
-           
+    case 3:{
+            int p;
+            do
+            {
+                cout << "\n1. Fantasi\n2. Fiksi Sejarah\n3. Filsafat\n4. Psikologi\n5. Kembali ke Menu Utama"
+                     << "\nMasukkan pilihan Anda: ";
+                cin >> p;
+                switch (p)
+                {
+                case 1:
+                    filterBuku("Fantasi");
+                    break;
+                case 2:
+                    filterBuku("Fiksi Sejarah");
+                    break;
+                case 3:
+                    filterBuku("Filsafat");
+                    break;
+                case 4:
+                    filterBuku("Psikologi");
+                    break;
+                case 5:
+                    break;
+                default:
+                    cout << "Pilihan tidak valid" << endl;
+                }
+            } while (p != 5);
+            
+            }
             break;
         case 4:
             rakPinjam(username);
             break;
         case 5:
+            saveAntrian();
             break;
         default:
             cout << "Pilihan tidak valid" << endl;
         }
     } while (pilihan != 5);
-    
+    saveAntrian();
 
     return 0;
 }
 
-void tambahBuku(string judul, string penulis, int jumlahCopy){
-    buku* baru = new buku{judul, penulis, jumlahCopy};
+void saveAntrian(){
+    ofstream dataAntrian("dataAntrian.txt");
+    if (!dataAntrian) return;
+    buku* temp = head;
+    while (temp != nullptr)
+    {
+        dataAntrian << temp->judul << "|";
+        queue<string> antri = temp->antrianPinjam;
+        while (!antri.empty())
+        {
+            dataAntrian << antri.front();
+            antri.pop();
+            if (!antri.empty()) dataAntrian << ",";
+        }
+        dataAntrian << endl;
+        temp = temp->next;
+    }
+    dataAntrian.close();
+}
+void loadAntrian(){
+    ifstream dataAntrian("dataAntrian.txt");
+    if (!dataAntrian) return;
+    string line;
+    while (getline(dataAntrian, line))
+    {
+        size_t pos = line.find("|");
+        if (pos == string::npos) continue;
+        string judul = line.substr(0,pos);
+        string daftarNama = line.substr(pos+1);
+        buku* temp = head;
+        while (temp != nullptr && temp->judul != judul) temp = temp->next;
+        if (!temp) continue;
+        stringstream ss(daftarNama);
+        string nama;
+        while (getline(ss, nama, ','))
+        {
+            temp->antrianPinjam.push(nama);
+            if (temp->antrianPinjam.size() <= temp->jumlahCopy)
+            {
+                pinjamanUser[nama].insert(judul);
+                temp->waktuUnduh[nama] = time(nullptr);
+            }
+        }
+    }
+    dataAntrian.close();
+}
+void tambahBuku(string judul, string penulis, string genre, int jumlahCopy){
+    buku* baru = new buku{judul, penulis, genre, jumlahCopy};
     baru -> next = nullptr;
     if (head == nullptr)
     {
@@ -110,6 +191,7 @@ void tampilkanKoleksiBuku(){
     {
         cout << "\nJudul: " << temp -> judul
         << "\nPenulis: " << temp -> penulis
+        << "\nGenre: " << temp->genre
         << "\nJumlah Copy: " << temp -> jumlahCopy
         << "\nAntrian: " << temp -> antrianPinjam.size() << "\n\n";
         temp = temp -> next;
@@ -182,7 +264,7 @@ void pinjamBuku(string username){
     {
         cout << "Buku tidak ditemukan" << endl;
     }
-    
+    saveAntrian();
     
 }
 buku* cariPtrBuku(const string& keyword){
@@ -229,6 +311,7 @@ void returnBuku(string username, string judulBuku){
         temp = temp->next;
     }
     cout << "Buku tidak ditemukan" << endl;
+    saveAntrian();
 }
 void autoReturnBuku(string username, string judul){
     this_thread::sleep_for(chrono::seconds(BATAS_WAKTU_UNDUH));
@@ -250,6 +333,7 @@ void autoReturnBuku(string username, string judul){
             }
         }
     }
+    saveAntrian();
 }
 void unduhBuku(string username){
     for (buku* temp = head; temp != nullptr; temp = temp->next)
@@ -329,4 +413,23 @@ void rakPinjam(string username){
             cout << "Pilihan tidak valid" << endl;
         }
     } while (pilihan != 4);
+}
+void filterBuku(const string& inputGenre){
+    buku* temp = head;
+    bool found = false;
+    // transform(inputGenre.begin(), inputGenre.end(), inputGenre.begin(), ::tolower);
+while (temp != nullptr)
+    {
+        if (temp -> genre == inputGenre)
+        {
+            cout << "\nJudul: " << temp->judul
+                 << "\nPenulis: " << temp->penulis
+                 << "\nGenre: " << temp->genre
+                 << "\nJumlah copy: " << temp->jumlahCopy
+                 << "\nAntrian: " << temp->antrianPinjam.size() << endl;
+            found = true;
+        }
+        temp = temp->next;
+    }
+    if (!found) cout << "Tidak ada buku dengan genre \"" << inputGenre << "\"" << endl;
 }
